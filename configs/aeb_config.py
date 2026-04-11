@@ -31,3 +31,10 @@ BRAKE_HEIGHT_THRESHOLD = CAM_HEIGHT * 0.35
 # Bắt buộc nhân đôi chiều ngang để chứa 1 Cam Trái + 1 Cam Phải
 WINDOW_WIDTH = CAM_WIDTH * 2  # Tương đương 1600
 WINDOW_HEIGHT = CAM_HEIGHT    # Giữ nguyên 600
+
+# 6. Thông số Lane Keeping Assist (LKA)
+LKA_ENABLED = True
+LKA_KP = 0.005      # Proportional gain
+LKA_KI = 0.0001     # Integral gain
+LKA_KD = 0.01       # Derivative gain
+LKA_MAX_STEERING = 1.0  # Góc lái tối đa (-1.0 đến 1.0)
