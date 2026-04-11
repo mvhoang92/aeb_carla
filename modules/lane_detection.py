@@ -1,16 +1,36 @@
 import cv2
 import numpy as np
 
+class KalmanFilterLane:
+    """Kalman Filter để làm mịn vị trí làn"""
+    def __init__(self):
+        self.kf = cv2.KalmanFilter(1, 1)
+        self.kf.measurementMatrix = np.array([[1.0]], dtype=np.float32)
+        self.kf.transitionMatrix = np.array([[1.0]], dtype=np.float32)
+        self.kf.processNoiseCov = np.array([[0.01]], dtype=np.float32)
+        self.kf.measurementNoiseCov = np.array([[4.0]], dtype=np.float32)
+        self.kf.statePost = np.array([[400.0]], dtype=np.float32)
+
+    def update(self, measurement):
+        """Cập nhật Kalman Filter"""
+        self.kf.correct(np.array([[measurement]], dtype=np.float32))
+        prediction = self.kf.predict()
+        return prediction[0][0]
+
 class LaneDetector:
-    """Phát hiện vạch làn đường bằng OpenCV"""
-    
+    """Phát hiện vạch làn đường bằng OpenCV với Kalman Filter"""
+
     def __init__(self, height=600, width=800):
         self.height = height
         self.width = width
-        
+
         # ROI (Region of Interest) - chỉ xử lý phần dưới của ảnh
         self.roi_top = int(height * 0.5)  # Bắt đầu từ 50% chiều cao
         self.roi_bottom = height
+
+        # Kalman Filter để làm mịn vị trí làn
+        self.kalman = KalmanFilterLane()
+        self.prev_lane_center = width / 2
         
     def preprocess(self, image):
         """Tiền xử lý ảnh: Grayscale, Blur, Threshold"""
@@ -78,24 +98,24 @@ class LaneDetector:
         return left_lines, right_lines
     
     def get_lane_center(self, image):
-        """Tính tâm làn đường"""
+        """Tính tâm làn đường với Kalman Filter"""
         lines, roi = self.detect_lanes(image)
-        
+
         if lines is None:
-            return None, None, None
-        
+            return self.prev_lane_center, None, None
+
         left_lines, right_lines = self.filter_lanes(lines)
-        
+
         # Tính trung bình vị trí vạch trái và phải
         left_x = None
         right_x = None
-        
+
         if left_lines:
             left_x = np.mean([line[0][0] for line in left_lines])
-        
+
         if right_lines:
             right_x = np.mean([line[0][0] for line in right_lines])
-        
+
         # Tính tâm làn
         lane_center = None
         if left_x is not None and right_x is not None:
@@ -104,7 +124,14 @@ class LaneDetector:
             lane_center = left_x + 100  # Giả định độ rộng làn
         elif right_x is not None:
             lane_center = right_x - 100
-        
+
+        # Áp dụng Kalman Filter để làm mịn
+        if lane_center is not None:
+            lane_center = self.kalman.update(lane_center)
+            self.prev_lane_center = lane_center
+        else:
+            lane_center = self.prev_lane_center
+
         return lane_center, left_lines, right_lines
     
     def draw_lanes(self, image, left_lines, right_lines):

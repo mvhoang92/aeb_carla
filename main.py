@@ -14,6 +14,8 @@ from modules.sensors import CameraSensor
 from modules.perception import YoloDetector # <-- MỚI
 from modules.lane_detection import LaneDetector
 from modules.lane_controller import LaneController
+from modules.lane_warning import LaneDepartureWarning
+from modules.adaptive_speed import AdaptiveSpeedController
 
 def main():
     pygame.init()
@@ -31,6 +33,8 @@ def main():
     # Khởi tạo Lane Detection & Controller
     lane_detector = LaneDetector(aeb_config.CAM_HEIGHT, aeb_config.CAM_WIDTH)
     lane_controller = LaneController(aeb_config.CAM_WIDTH, aeb_config.LKA_MAX_STEERING)
+    lane_warning = LaneDepartureWarning(aeb_config.CAM_WIDTH, warning_threshold=80)
+    speed_controller = AdaptiveSpeedController(max_speed=0.8, min_speed=0.3)
 
     cam_front = None
     cam_third = None
@@ -63,16 +67,26 @@ def main():
             # Kẻ vạch chia đôi
             pygame.draw.line(display, (255, 255, 255), (aeb_config.CAM_WIDTH, 0), (aeb_config.CAM_WIDTH, aeb_config.CAM_HEIGHT), 2)
 
-            # 2. LANE KEEPING ASSIST (LKA)
+            # 2. LANE KEEPING ASSIST (LKA) + ADAPTIVE SPEED
             steering_angle = 0.0
+            throttle = 0.5
+            warning_msg = "Lane OK"
+
             if aeb_config.LKA_ENABLED and cam_front.image_array is not None:
                 lane_center, left_lines, right_lines = lane_detector.get_lane_center(cam_front.image_array)
                 steering_angle = lane_controller.calculate_steering_angle(lane_center)
 
+                # Adaptive Speed Control
+                throttle = speed_controller.calculate_adaptive_speed(steering_angle)
+
+                # Lane Departure Warning
+                warning_active, warning_side, distance = lane_warning.check_departure(lane_center, left_lines, right_lines)
+                warning_msg = lane_warning.get_warning_message()
+
                 # Áp dụng steering angle vào xe
                 if env.ego_vehicle:
                     control = carla.VehicleControl()
-                    control.throttle = 0.5  # Tốc độ cố định
+                    control.throttle = throttle
                     control.steer = steering_angle
                     env.ego_vehicle.apply_control(control)
 
@@ -83,7 +97,8 @@ def main():
 
                 # Vẽ tâm làn
                 if lane_center is not None:
-                    pygame.draw.circle(display, (255, 0, 0), (int(lane_center) + aeb_config.CAM_WIDTH, int(aeb_config.CAM_HEIGHT * 0.75)), 5)
+                    color = (255, 0, 0) if warning_active else (0, 255, 0)
+                    pygame.draw.circle(display, color, (int(lane_center) + aeb_config.CAM_WIDTH, int(aeb_config.CAM_HEIGHT * 0.75)), 5)
 
             # 3. CHẠY AI & VẼ BOUNDING BOX TRỰC TIẾP
             if cam_front.image_array is not None:
@@ -106,10 +121,21 @@ def main():
                     text_surface = sys_font.render(label, True, (0, 0, 0), color) # Chữ đen, nền màu
                     display.blit(text_surface, (x, max(0, y - 20)))
 
-            # Vẽ thông tin steering angle
+            # Vẽ thông tin steering angle, throttle, warning
             steering_text = f"Steering: {steering_angle:.3f}"
+            throttle_text = f"Throttle: {throttle:.2f}"
+            warning_text = warning_msg
+
             steering_surface = sys_font.render(steering_text, True, (255, 255, 0))
+            throttle_surface = sys_font.render(throttle_text, True, (255, 255, 0))
+
+            # Màu cảnh báo
+            warning_color = (0, 0, 255) if warning_active else (0, 255, 0)
+            warning_surface = sys_font.render(warning_text, True, warning_color)
+
             display.blit(steering_surface, (10, 10))
+            display.blit(throttle_surface, (10, 35))
+            display.blit(warning_surface, (10, 60))
 
             pygame.display.flip()
 
