@@ -1,0 +1,14 @@
+task: segmentation
+path: ./lane_data
+images: images
+masks: masks
+overlays: overlays
+
+nc: 2
+names:
+  0: background
+  1: ego_lane
+
+mask_encoding:
+  background: 0
+  ego_lane: 255

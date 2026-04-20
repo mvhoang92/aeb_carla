@@ -27,17 +27,21 @@ class CameraSensor:
         
         array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
         array = np.reshape(array, (image.height, image.width, 4))
-        array = array[:, :, :3]
-        array = array[:, :, ::-1] # BGR sang RGB
+        bgr_array = array[:, :, :3].copy() # Copy BGR cho YOLO
         
-        self.image_array = array.copy() # <-- MỚI: Copy ảnh ra cho YOLO dùng
-        self.surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
+        self.image_array = bgr_array # YOLO mặc định lấy đầu vào BGR giống OpenCV
+        
+        # BGR sang RGB cho Pygame
+        rgb_array = bgr_array[:, :, ::-1] 
+        self.surface = pygame.surfarray.make_surface(rgb_array.swapaxes(0, 1))
 
     def render(self, display, x_offset=0, y_offset=0):
         if self.surface is not None:
             display.blit(self.surface, (x_offset, y_offset))
 
     def destroy(self):
-        if self.sensor: 
-            self.sensor.stop()
-            self.sensor.destroy()
+        if self.sensor is not None:
+            if self.sensor.is_alive:
+                self.sensor.stop()
+                self.sensor.destroy()
+            self.sensor = None

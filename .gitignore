@@ -1,0 +1,29 @@
+# Data & weights (quá lớn để commit)
+/dataset/
+/dataset_*/
+/data/
+/lane_data/
+/weights/
+/check_labels/
+/lane_check/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Logs & recordings
+*.log
+*.mp4
+*.avi
+*.mkv
+_out/
+_recordings/
+
+# IDE
+.vscode/
+.idea/
+
+# Python venv (nếu lỡ tạo trong thư mục này)
+venv/
+carla_env/

@@ -112,11 +112,14 @@ class CarlaEnv:
     def cleanup(self):
         """Hủy toàn bộ xe và người khi tắt chương trình để tránh rác map"""
         print("\n[*] Đang dọn dẹp hiện trường...")
-        if self.ego_vehicle:
-            self.ego_vehicle.destroy()
+        if self.ego_vehicle is not None:
+            if self.ego_vehicle.is_alive:
+                self.ego_vehicle.destroy()
+            self.ego_vehicle = None
         
         # Dùng batch destroy để xóa hàng loạt NPC siêu nhanh
         if self.npc_list:
             self.client.apply_batch([carla.command.DestroyActor(x) for x in self.npc_list])
+            self.npc_list.clear()
             
         print("[+] Dọn dẹp hoàn tất. Hẹn gặp lại!")
